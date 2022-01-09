@@ -36,7 +36,7 @@ FILE *g_logFilePtr;
 FILE *g_listFile_fp = NULL;
 /* Global variables used by print2() */
 flag g_outputToString = 0;
-vstring g_printString = "";
+vstring_def(g_printString);
 /* Global variables used by cmdInput() */
 long g_commandFileNestingLevel = 0;
 FILE *g_commandFilePtr[MAX_COMMAND_FILE_NESTING + 1];
@@ -45,7 +45,8 @@ flag g_commandFileSilent[MAX_COMMAND_FILE_NESTING + 1];
 flag g_commandFileSilentFlag = 0; /* For SUBMIT ... /SILENT */
 
 FILE *g_input_fp; /* File pointers */
-vstring g_input_fn="", g_output_fn="";        /* File names */
+vstring_def(g_input_fn);
+vstring_def(g_output_fn);        /* File names */
 
 long g_screenWidth = MAX_LEN; /* Width default = 79 */
 /* g_screenHeight is one less than the physical screen to account for the
@@ -57,7 +58,7 @@ flag g_quitPrint = 0; /* Flag that user quit the output */
 flag localScrollMode = 1; /* 0 = Scroll continuously only till next prompt */
 
 /* Buffer for B (back) command at end-of-page prompt - for future use */
-pntrString *backBuffer = NULL_PNTRSTRING;
+pntrString_def(backBuffer);
 long backBufferPos = 0;
 flag backFromCmdInput = 0; /* User typed "B" at main prompt */
 
@@ -358,11 +359,11 @@ flag print2(char* fmt, ...) {
              code */
 void printLongLine(vstring line, vstring startNextLine, vstring breakMatch)
 {
-  vstring longLine = "";
-  vstring multiLine = "";
-  vstring prefix = "";
-  vstring startNextLine1 = "";
-  vstring breakMatch1 = "";
+  vstring_def(longLine);
+  vstring_def(multiLine);
+  vstring_def(prefix);
+  vstring_def(startNextLine1);
+  vstring_def(breakMatch1);
   long i, j, p;
   long startNextLineLen;
   flag firstLine;
@@ -378,7 +379,7 @@ void printLongLine(vstring line, vstring startNextLine, vstring breakMatch)
     /* Do a dummy let() so caller can always depend on printLongLine
        to empty the tempalloc string stack (for the rest of this code, the
        first let() will do this) */
-    let(&longLine, "");
+    free_vstring(longLine);
     print2("\n");
     return;
   }
@@ -468,7 +469,7 @@ void printLongLine(vstring line, vstring startNextLine, vstring breakMatch)
       let(&multiLine, right(multiLine, p + 1));
     } else {
       let(&longLine, multiLine);
-      let(&multiLine, "");
+      free_vstring(multiLine);
     }
 
     saveScreenWidth = g_screenWidth;
@@ -550,7 +551,7 @@ void printLongLine(vstring line, vstring startNextLine, vstring breakMatch)
       if (p == 1 && longLine[0] != ' ') bug(1516);
       if (firstLine) {
         firstLine = 0;
-        let(&prefix, "");
+        free_vstring(prefix);
       } else {
         let(&prefix, startNextLine1);
         if (treeIndentationFlag) {
@@ -596,11 +597,11 @@ void printLongLine(vstring line, vstring startNextLine, vstring breakMatch)
 
   } /* end while multiLine != "" */
 
-  let(&multiLine, ""); /* Deallocate */
-  let(&longLine, ""); /* Deallocate */
-  let(&prefix, ""); /* Deallocate */
-  let(&startNextLine1, ""); /* Deallocate */
-  let(&breakMatch1, ""); /* Deallocate */
+  free_vstring(multiLine); /* Deallocate */
+  free_vstring(longLine); /* Deallocate */
+  free_vstring(prefix); /* Deallocate */
+  free_vstring(startNextLine1); /* Deallocate */
+  free_vstring(breakMatch1); /* Deallocate */
 
   return;
 } /* printLongLine */
@@ -611,13 +612,13 @@ vstring cmdInput(FILE *stream, vstring ask) {
     the input stream.  NULL is returned when end-of-file is encountered.
     New memory is allocated each time linput is called.  This space must
     be freed by the caller. */
-  vstring g = ""; /* Always init vstrings to "" for let(&...) to work */
+  vstring_def(g); /* Always init vstrings to "" for let(&...) to work */
   long i;
 #define CMD_BUFFER_SIZE 2000
 
   while (1) { /* For "B" backup loop */
     if (ask != NULL && !g_commandFileSilentFlag) {
-      printf("%s",ask);
+      printf("%s", ask);
 #if __STDC__
       fflush(stdout);
 #endif
@@ -627,7 +628,7 @@ vstring cmdInput(FILE *stream, vstring ask) {
     g[CMD_BUFFER_SIZE - 1] = 0; /* For overflow detection */
     if (!fgets(g, CMD_BUFFER_SIZE, stream)) {
       /* End of file */
-      let(&g, ""); /* Deallocate memory */
+      free_vstring(g); /* Deallocate memory */
       return NULL;
     }
     if (g[CMD_BUFFER_SIZE - 1]) {
@@ -684,7 +685,7 @@ vstring cmdInput(FILE *stream, vstring ask) {
       /* Eliminate new-line by deallocating vstring space (if we just zap
          character [0], let() will later think g is an empty string constant
          and will never deallocate g) */
-      let(&g, "");
+      free_vstring(g);
     }
 
     /* If user typed "B" (for back), go back to the back buffer to
@@ -738,8 +739,8 @@ vstring cmdInput1(vstring ask)
   /* This function gets a line from either the terminal or the command file
     stream depending on g_commandFileNestingLevel > 0.  It calls cmdInput(). */
   /* Warning: the calling program must deallocate the returned string. */
-  vstring commandLn = "";
-  vstring ask1 = "";
+  vstring_def(commandLn);
+  vstring_def(ask1);
   long p, i;
 
   let(&ask1, ask); /* In case ask is temporarily allocated (i.e in case it
@@ -786,10 +787,10 @@ vstring cmdInput1(vstring ask)
 
       /* Clear backBuffer from previous scroll session */
       for (i = 0; i < pntrLen(backBuffer); i++) {
-        let((vstring *)(&(backBuffer[i])), "");
+        free_vstring(*(vstring *)(&backBuffer[i]));
       }
       backBufferPos = 1;
-      pntrLet(&backBuffer, NULL_PNTRSTRING);
+      free_pntrString(backBuffer);
       pntrLet(&backBuffer, pntrAddElement(backBuffer));
       /* Note: pntrAddElement() initializes the added element to the
          empty string, so we don't need a separate initialization. */
@@ -811,7 +812,7 @@ vstring cmdInput1(vstring ask)
         fclose(g_commandFilePtr[g_commandFileNestingLevel]);
         print2("%s[End of command file \"%s\".]\n", ask1,
             g_commandFileName[g_commandFileNestingLevel]);
-        let(&(g_commandFileName[g_commandFileNestingLevel]), "");
+        free_vstring(g_commandFileName[g_commandFileNestingLevel]);
                                                         /* Deallocate string */
         g_commandFileNestingLevel--;
         commandLn = "";
@@ -833,7 +834,7 @@ vstring cmdInput1(vstring ask)
     break;
   }
 
-  let(&ask1, "");
+  free_vstring(ask1);
   return commandLn;
 } /* cmdInput1 */
 
@@ -844,10 +845,10 @@ void errorMessage(vstring line, long lineNum, long column, long tokenLength,
   /* Note:  "line" may be terminated with \n.  "error" and "fileName"
      should NOT be terminated with \n.  This is done for the convenience
      of the calling functions. */
-  vstring errorPointer = "";
-  vstring tmpStr = "";
-  vstring prntStr = "";
-  vstring line1 = "";
+  vstring_def(errorPointer);
+  vstring_def(tmpStr);
+  vstring_def(prntStr);
+  vstring_def(line1);
   int j;
 
   /* Prevent putting error message in g_printString */
@@ -862,9 +863,9 @@ void errorMessage(vstring line, long lineNum, long column, long tokenLength,
 
   /* Make sure vstring argument doesn't get deallocated with another let */
 /*??? USE SAVETEMPALLOC*/
-  let(&tmpStr,error); /* error will get deallocated here */
+  let(&tmpStr, error); /* error will get deallocated here */
   error = "";
-  let(&error,tmpStr); /* permanently allocate error */
+  let(&error, tmpStr); /* permanently allocate error */
 
   /* Add a newline to line1 if there is none */
   if (line) {
@@ -914,7 +915,7 @@ void errorMessage(vstring line, long lineNum, long column, long tokenLength,
   printLongLine(cat(prntStr, ":", NULL), "", " ");
   if (line1) printLongLine(line1, "", "");
   if (line1 && column && tokenLength) {
-    let(&errorPointer,"");
+    free_vstring(errorPointer);
     for (j=0; j<column-1; j++) {
       /* Make sure that tabs on the line with the error are accounted for so
          that the error pointer lines up correctly */
@@ -944,11 +945,11 @@ void errorMessage(vstring line, long lineNum, long column, long tokenLength,
     print2("Aborting Metamath.\n");
     exit(0);
   }
-  let(&errorPointer,"");
-  let(&tmpStr,"");
-  let(&prntStr,"");
-  let(&error,"");
-  if (line1) let(&line1,"");
+  free_vstring(errorPointer);
+  free_vstring(tmpStr);
+  free_vstring(prntStr);
+  free_vstring(error);
+  if (line1) free_vstring(line1);
 } /* errorMessage() */
 
 
@@ -958,10 +959,10 @@ void errorMessage(vstring line, long lineNum, long column, long tokenLength,
    backup of previous version.   Mode must be "r" or "w" or "d" (delete). */
 FILE *fSafeOpen(vstring fileName, vstring mode, flag noVersioningFlag) {
   FILE *fp;
-  vstring prefix = "";
-  vstring postfix = "";
-  vstring bakName = "";
-  vstring newBakName = "";
+  vstring_def(prefix);
+  vstring_def(postfix);
+  vstring_def(bakName);
+  vstring_def(newBakName);
   long v;
   long lastVersion; /* Last version before gap */
 
@@ -970,7 +971,7 @@ FILE *fSafeOpen(vstring fileName, vstring mode, flag noVersioningFlag) {
     if (!fp) {
       print2("?Sorry, couldn't open the file \"%s\".\n", fileName);
     }
-    return (fp);
+    return fp;
   }
 
   if (!strcmp(mode, "w") || !strcmp(mode, "d")) {
@@ -992,7 +993,7 @@ FILE *fSafeOpen(vstring fileName, vstring mode, flag noVersioningFlag) {
         let(&postfix, right(fileName, i));
       } else {
         let(&prefix, fileName);
-        let(&postfix, "");
+        free_vstring(postfix);
       }
       let(&prefix, cat(left(prefix, 5), "~", NULL));
       let(&postfix, cat("~", postfix, NULL));
@@ -1000,7 +1001,7 @@ FILE *fSafeOpen(vstring fileName, vstring mode, flag noVersioningFlag) {
 
 #elif defined __GNUC__ /* Assume unix */
       let(&prefix, cat(fileName, "~", NULL));
-      let(&postfix, "");
+      free_vstring(postfix);
 
 #elif defined VAXC /* Assume VMS */
       /* For debugging on VMS: */
@@ -1012,7 +1013,7 @@ FILE *fSafeOpen(vstring fileName, vstring mode, flag noVersioningFlag) {
 #else /* Unknown; assume unix standard */
       /*if (1) goto skip_backup;*/  /* [if no backup desired] */
       let(&prefix, cat(fileName, "~", NULL));
-      let(&postfix, "");
+      free_vstring(postfix);
 
 #endif
 
@@ -1087,12 +1088,12 @@ FILE *fSafeOpen(vstring fileName, vstring mode, flag noVersioningFlag) {
     }
 
     /* Deallocate local strings */
-    let(&prefix, "");
-    let(&postfix, "");
-    let(&bakName, "");
-    let(&newBakName, "");
+    free_vstring(prefix);
+    free_vstring(postfix);
+    free_vstring(bakName);
+    free_vstring(newBakName);
 
-    return (fp);
+    return fp;
   } /* End if mode = "w" or "d" */
 
   bug(1510); /* Illegal mode */
@@ -1150,14 +1151,14 @@ int fSafeRename(vstring oldFileName, vstring newFileName)
    nnn + ".tmp" that does not exist.  THE CALLER MUST DEALLOCATE
    THE RETURNED STRING [i.e. assign function return directly
    to a local empty vstring with = and not with let(), e.g.
-        let(&str1, "");
+        free_vstring(str1);
         str1 = fTmpName("zz~list");  ]
    The file whose name is the returned string is not left open;
    the caller must separately open the file. */
 vstring fGetTmpName(vstring filePrefix)
 {
   FILE *fp;
-  vstring fname = "";
+  vstring_def(fname);
   static long counter = 0;
   while (1) {
     counter++;
@@ -1193,7 +1194,7 @@ vstring readFileToString(vstring fileName, char verbose, long *charCount) {
   inputFp = fopen(fileName, "rb");
   if (!inputFp) {
     if (verbose) print2("?Sorry, couldn't open the file \"%s\".\n", fileName);
-    return (NULL);
+    return NULL;
   }
 #ifndef SEEK_END
 /* An older GCC compiler didn't have this ANSI standard constant defined. */
@@ -1204,7 +1205,7 @@ vstring readFileToString(vstring fileName, char verbose, long *charCount) {
     if (verbose) print2(
         "?Sorry, \"%s\" doesn't seem to be a regular file.\n",
         fileName);
-    return (NULL);
+    return NULL;
   }
   fileBufSize = ftell(inputFp);
 
@@ -1223,7 +1224,7 @@ vstring readFileToString(vstring fileName, char verbose, long *charCount) {
         "?Sorry, there was not enough memory to read the file \"%s\".\n",
         fileName);
     fclose(inputFp);
-    return (NULL);
+    return NULL;
   }
 
   /* Put the entire input file into the buffer as a giant character string */
@@ -1249,7 +1250,7 @@ vstring readFileToString(vstring fileName, char verbose, long *charCount) {
 "?Sorry, there are an odd number of characters (%ld) %s \"%s\".\n",
             (*charCount), "in Unicode file", fileName);
         free(fileBuf);
-        return (NULL);
+        return NULL;
       }
       i = 0; /* ASCII character position */
       j = 2; /* Unicode character position */
@@ -1260,14 +1261,14 @@ vstring readFileToString(vstring fileName, char verbose, long *charCount) {
               fileName, "has a non-ASCII \ncharacter code",
               (long)(fileBuf[j]) + ((long)(fileBuf[j + 1]) * 256), j);
           free(fileBuf);
-          return (NULL);
+          return NULL;
         }
         if (fileBuf[j] == 0) {
           if (verbose) print2(
               "?Sorry, the Unicode file \"%s\" %s at byte %ld.\n",
               fileName, "has a null character", j);
           free(fileBuf);
-          return (NULL);
+          return NULL;
         }
         fileBuf[i] = fileBuf[j];
         /* Suppress any carriage-returns */
@@ -1341,7 +1342,7 @@ vstring readFileToString(vstring fileName, char verbose, long *charCount) {
   print2("In text mode the file has %ld bytes.\n", (*charCount));
   *******/
 
-  return ((char *)fileBuf);
+  return (char *)fileBuf;
 } /* readFileToString */
 
 
@@ -1370,6 +1371,6 @@ double getRunTime(double *timeSinceLastCall) {
 void freeInOu() {
   long i, j;
   j = pntrLen(backBuffer);
-  for (i = 0; i < j; i++) let((vstring *)(&backBuffer[i]), "");
-  pntrLet(&backBuffer, NULL_PNTRSTRING);
+  for (i = 0; i < j; i++) free_vstring(*(vstring *)(&backBuffer[i]));
+  free_pntrString(backBuffer);
 }
